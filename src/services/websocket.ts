@@ -78,7 +78,7 @@ export const startWebsocketsPrices = async (
 
           wsList[i].subscribedToStreams = true;
           console.log(
-            `Subscribed to ${MAX_STREAM_SIZE} streams on client with id: ${wsList[i].id}`
+            `Subscribed to ${STREAM_SIZE} streams on client with id: ${wsList[i].id}`
           );
         }
         if (msg.includes('"e":"kline"')) {
@@ -96,7 +96,8 @@ export const startWebsocketsPrices = async (
           );
         } else {
           binanceWs.subscribeToMultipleKlines(
-            klines.slice(STREAM_SIZE * pos, klines.length - 1));
+            klines.slice(STREAM_SIZE * pos, klines.length - 1)
+          );
         }
         pos++;
       }
@@ -107,16 +108,17 @@ export const startWebsocketsPrices = async (
 };
 
 const clientConnected = (socket: Socket) => {
-  socket.on('connect symbol', (msg: string) => {
-    const { symbol, interval } = JSON.parse(msg);
-
-    socket.join(`${symbol}_${interval}`);
-  });
-
-  socket.on('disconnect symbol', (msg) => {
-    const { symbol, interval } = JSON.parse(msg);
-
-    socket.leave(`${symbol}_${interval}`);
+  console.log(socket.id);
+  socket.on('message', (msg: string) => {
+    const { action, symbol, interval } = JSON.parse(msg);
+    console.log(msg);
+    if (action === 'CONNECT') {
+      socket.join(`${symbol}_${interval}`);
+      console.log(`${socket.id} conectado a la sala ${symbol}_${interval}`);
+    }
+    if (action === 'DISCONNECT') {
+      socket.leave(`${symbol}_${interval}`);
+    }
   });
 };
 
@@ -139,7 +141,6 @@ const onCandleMessage = (
       const symbol = buildSymbolPrice(`${msg.k.s}_${msg.k.i}`, candle);
       symbol.save();
     }
-
-    ws.to(`${msg.k.s}_${msg.k.i}`).emit(JSON.stringify(candle));
+    ws.to(`${msg.k.s}_${msg.k.i}`).emit('kline', JSON.stringify(candle));
   }
 };
